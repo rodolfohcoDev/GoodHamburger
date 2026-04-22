@@ -1,0 +1,83 @@
+@page "/pedidos/{Id:guid}"
+@rendermode InteractiveServer
+@inject ApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Pedido - Good Hamburger</PageTitle>
+
+<div class="container">
+    <div class="mb-3">
+        <a href="/pedidos" class="btn btn-outline-secondary btn-sm">Voltar</a>
+    </div>
+
+    @if (_success)
+    {
+        <div class="alert alert-success alert-dismissible">
+            Pedido registrado com sucesso!
+            <button type="button" class="btn-close" @onclick="() => _success = false"></button>
+        </div>
+    }
+
+    @if (_loading)
+    {
+        <div class="spinner-border" role="status"></div>
+    }
+    else if (_order is null)
+    {
+        <div class="alert alert-warning">Pedido nao encontrado.</div>
+    }
+    else
+    {
+        <h2>Pedido <code>@_order.Id.ToString()[..8]</code></h2>
+        <p class="text-muted">Criado em @_order.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5>Itens</h5>
+                <ul class="list-group list-group-flush">
+                    @foreach (var item in _order.Items)
+                    {
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>@item.MenuItemName</span>
+                            <span>R$ @item.UnitPrice.ToString("0.00")</span>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-1">
+                    <span>Subtotal</span><span>R$ @_order.Subtotal.ToString("0.00")</span>
+                </div>
+                @if (_order.DiscountPercent > 0)
+                {
+                    <div class="d-flex justify-content-between mb-1 text-success">
+                        <span>Desconto (@_order.DiscountPercent%)</span>
+                        <span>- R$ @_order.DiscountAmount.ToString("0.00")</span>
+                    </div>
+                }
+                <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-2">
+                    <span>Total</span><span>R$ @_order.Total.ToString("0.00")</span>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [SupplyParameterFromQuery] public string? Success { get; set; }
+
+    private OrderModel? _order;
+    private bool _loading = true;
+    private bool _success;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _success = Success == "true";
+        _order = await Api.GetOrderAsync(Id);
+        _loading = false;
+    }
+}

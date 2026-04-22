@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: goodhamburger-postgres
+    environment:
+      POSTGRES_DB: goodhamburger
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d goodhamburger"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: src/GoodHamburger.Api/Dockerfile
+    container_name: goodhamburger-api
+    ports:
+      - "8080:8080"
+    environment:
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=goodhamburger;Username=app;Password=app"
+      ASPNETCORE_ENVIRONMENT: Production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: src/GoodHamburger.Web/Dockerfile
+    container_name: goodhamburger-web
+    ports:
+      - "5000:8080"
+    environment:
+      Api__BaseUrl: "http://api:8080"
+      ASPNETCORE_ENVIRONMENT: Production
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
