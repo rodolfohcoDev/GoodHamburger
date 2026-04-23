@@ -1,0 +1,29 @@
+@if (IsOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Title</h5>
+                    <button type="button" class="btn-close" @onclick="OnCancel" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@Message</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" @onclick="OnCancel">Cancelar</button>
+                    <button class="btn btn-danger" @onclick="OnConfirm">@ConfirmLabel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public string Title { get; set; } = "Tem certeza?";
+    [Parameter] public string Message { get; set; } = "Esta ação não pode ser desfeita.";
+    [Parameter] public string ConfirmLabel { get; set; } = "Confirmar";
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+}

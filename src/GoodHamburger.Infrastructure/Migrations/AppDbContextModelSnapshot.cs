@@ -22,6 +22,65 @@ namespace GoodHamburger.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("GoodHamburger.Domain.Entities.DiscountRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MatchMode")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("MinimumSubtotal")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<decimal>("Percent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("RequiresDrink")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiresFries")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiresSandwich")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ValidFrom")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ValidUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("discount_rules", (string)null);
+                });
+
+            modelBuilder.Entity("GoodHamburger.Domain.Entities.DiscountRuleRequiredItem", b =>
+                {
+                    b.Property<Guid>("DiscountRuleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MenuItemId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("DiscountRuleId", "MenuItemId");
+
+                    b.ToTable("discount_rule_required_items", (string)null);
+                });
+
             modelBuilder.Entity("GoodHamburger.Domain.Entities.MenuItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -35,6 +94,11 @@ namespace GoodHamburger.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -57,6 +121,13 @@ namespace GoodHamburger.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AppliedDiscountRuleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AppliedDiscountRuleName")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -111,6 +182,15 @@ namespace GoodHamburger.Infrastructure.Migrations
                     b.ToTable("OrderItem");
                 });
 
+            modelBuilder.Entity("GoodHamburger.Domain.Entities.DiscountRuleRequiredItem", b =>
+                {
+                    b.HasOne("GoodHamburger.Domain.Entities.DiscountRule", null)
+                        .WithMany("RequiredItems")
+                        .HasForeignKey("DiscountRuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("GoodHamburger.Domain.Entities.OrderItem", b =>
                 {
                     b.HasOne("GoodHamburger.Domain.Entities.Order", null)
@@ -118,6 +198,11 @@ namespace GoodHamburger.Infrastructure.Migrations
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("GoodHamburger.Domain.Entities.DiscountRule", b =>
+                {
+                    b.Navigation("RequiredItems");
                 });
 
             modelBuilder.Entity("GoodHamburger.Domain.Entities.Order", b =>

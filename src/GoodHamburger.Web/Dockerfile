@@ -7,7 +7,7 @@ COPY ["src/GoodHamburger.Domain/GoodHamburger.Domain.csproj", "src/GoodHamburger
 RUN dotnet restore "src/GoodHamburger.Web/GoodHamburger.Web.csproj"
 
 COPY . .
-RUN dotnet publish "src/GoodHamburger.Web/GoodHamburger.Web.csproj" -c Release -o /app/publish --no-restore
+RUN dotnet publish "src/GoodHamburger.Web/GoodHamburger.Web.csproj" -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app

@@ -1,8 +1,7 @@
 using FluentAssertions;
 using GoodHamburger.Application.Dtos;
 using GoodHamburger.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Hosting;using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +11,9 @@ using System.Net.Http.Json;
 using Xunit;
 
 namespace GoodHamburger.Api.Tests;
+
+[CollectionDefinition("ApiCollection")]
+public class ApiCollectionFixture : ICollectionFixture<ApiWebFactory> { }
 
 public class ApiWebFactory : WebApplicationFactory<Program>
 {
@@ -34,7 +36,8 @@ public class ApiWebFactory : WebApplicationFactory<Program>
     }
 }
 
-public class OrderEndpointTests : IClassFixture<ApiWebFactory>
+[Collection("ApiCollection")]
+public class OrderEndpointTests
 {
     private readonly HttpClient _client;
     private readonly ApiWebFactory _factory;
@@ -118,5 +121,64 @@ public class OrderEndpointTests : IClassFixture<ApiWebFactory>
 
         var deleteResponse = await _client.DeleteAsync($"/api/orders/{created!.Id}");
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+}
+
+[Collection("ApiCollection")]
+public class DiscountRuleEndpointTests
+{
+    private readonly HttpClient _client;
+
+    public DiscountRuleEndpointTests(ApiWebFactory factory)
+        => _client = factory.CreateClient();
+
+    [Fact]
+    public async Task GET_DiscountRules_Returns200_With3SeededRules()
+    {
+        var response = await _client.GetAsync("/api/discount-rules");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var rules = await response.Content.ReadFromJsonAsync<List<DiscountRuleDto>>();
+        rules.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task POST_DiscountRules_Simulate_Returns200()
+    {
+        var menuResponse = await _client.GetAsync("/api/menu");
+        var menuItems = await menuResponse.Content.ReadFromJsonAsync<List<MenuItemDto>>();
+        var xBacon = menuItems!.First(i => i.Code == "XBACON").Id;
+        var fries = menuItems.First(i => i.Code == "FRIES").Id;
+        var soda = menuItems.First(i => i.Code == "SODA").Id;
+
+        var response = await _client.PostAsJsonAsync("/api/discount-rules/simulate",
+            new { MenuItemIds = new[] { xBacon, fries, soda } });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task POST_DiscountRules_DuplicatePriority_Returns409()
+    {
+        // Priority 1 is already used by the seeded Combo Completo rule
+        var response = await _client.PostAsJsonAsync("/api/discount-rules", new
+        {
+            Name = "Test Duplicate Priority",
+            Percent = 5.0,
+            MatchMode = 1,
+            RequiresSandwich = true,
+            RequiresFries = false,
+            RequiresDrink = false,
+            Priority = 1,
+            IsActive = true
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task GET_DiscountRules_ById_NotFound_Returns404()
+    {
+        var response = await _client.GetAsync($"/api/discount-rules/{Guid.NewGuid()}");
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

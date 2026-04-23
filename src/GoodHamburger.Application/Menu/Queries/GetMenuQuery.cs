@@ -4,7 +4,7 @@ using Mediator;
 
 namespace GoodHamburger.Application.Menu.Queries;
 
-public sealed record GetMenuQuery : IRequest<IReadOnlyList<MenuItemDto>>;
+public sealed record GetMenuQuery(bool IncludeInactive = false) : IRequest<IReadOnlyList<MenuItemDto>>;
 
 public sealed class GetMenuQueryHandler : IRequestHandler<GetMenuQuery, IReadOnlyList<MenuItemDto>>
 {
@@ -17,7 +17,7 @@ public sealed class GetMenuQueryHandler : IRequestHandler<GetMenuQuery, IReadOnl
 
     public async ValueTask<IReadOnlyList<MenuItemDto>> Handle(GetMenuQuery request, CancellationToken cancellationToken)
     {
-        var items = await _menuRepository.GetAllAsync(cancellationToken);
-        return items.Select(i => new MenuItemDto(i.Id, i.Code, i.Name, i.Price, i.Category)).ToList();
+        var items = await _menuRepository.GetAllAsync(request.IncludeInactive, cancellationToken);
+        return items.Select(i => new MenuItemDto(i.Id, i.Code, i.Name, i.Price, i.Category, i.IsActive)).ToList();
     }
 }

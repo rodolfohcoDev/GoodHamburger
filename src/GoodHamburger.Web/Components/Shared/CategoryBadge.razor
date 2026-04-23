@@ -1,0 +1,21 @@
+<span class="badge @_cssClass">@_label</span>
+
+@code {
+    [Parameter] public ProductCategory Category { get; set; }
+
+    string _cssClass => Category switch
+    {
+        ProductCategory.Sandwich => "badge-category-sandwich",
+        ProductCategory.Fries    => "badge-category-fries",
+        ProductCategory.Drink    => "badge-category-drink",
+        _ => "bg-secondary"
+    };
+
+    string _label => Category switch
+    {
+        ProductCategory.Sandwich => "Sanduíche",
+        ProductCategory.Fries    => "Acompanhamento",
+        ProductCategory.Drink    => "Bebida",
+        _ => "—"
+    };
+}

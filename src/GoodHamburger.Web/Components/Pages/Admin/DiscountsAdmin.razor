@@ -1,0 +1,182 @@
+@page "/admin/descontos"
+@rendermode InteractiveServer
+@inject ApiClient Api
+@inject ToastService Toasts
+
+<PageTitle>Descontos — Admin | Good Hamburger</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3>🏷️ Regras de desconto</h3>
+        <p class="text-muted mb-0">Gerencie as regras de desconto aplicadas automaticamente aos pedidos.</p>
+    </div>
+    <button class="btn btn-gh-primary" @onclick="OpenCreate">
+        <i class="bi bi-plus-circle me-1"></i>Nova regra
+    </button>
+</div>
+
+@if (_loading)
+{
+    <LoadingSpinner Message="Carregando regras..." />
+}
+else if (!_rules.Any())
+{
+    <EmptyState Icon="🏷️" Title="Nenhuma regra cadastrada"
+                Message="Crie a primeira regra de desconto."
+                ActionLabel="Nova regra"
+                OnAction="OpenCreate" />
+}
+else
+{
+    <div class="mb-3 d-flex gap-2 flex-wrap">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="showInactive" @bind="_showInactive" />
+            <label class="form-check-label" for="showInactive">Mostrar inativas</label>
+        </div>
+    </div>
+
+    <div class="card-gh">
+        <table class="table table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Prioridade</th>
+                    <th>Nome</th>
+                    <th>Modo</th>
+                    <th>Combinação</th>
+                    <th>Desconto</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var rule in FilteredRules)
+                {
+                    <tr>
+                        <td><span class="badge bg-secondary">@rule.Priority</span></td>
+                        <td><strong>@rule.Name</strong></td>
+                        <td>
+                            @switch (rule.MatchMode)
+                            {
+                                case 1: <span class="chip">Categoria (≥)</span> break;
+                                case 2: <span class="chip">Categoria (=)</span> break;
+                                case 3: <span class="chip">Itens específicos</span> break;
+                            }
+                        </td>
+                        <td>
+                            @if (rule.MatchMode != 3)
+                            {
+                                @if (rule.RequiresSandwich) { <span class="chip me-1">🥪</span> }
+                                @if (rule.RequiresFries)    { <span class="chip me-1">🍟</span> }
+                                @if (rule.RequiresDrink)    { <span class="chip me-1">🥤</span> }
+                            }
+                            else
+                            {
+                                <span class="text-muted small">@rule.RequiredMenuItemIds.Count item(s)</span>
+                            }
+                        </td>
+                        <td><span class="badge bg-success fs-6">@rule.Percent%</span></td>
+                        <td>
+                            @if (rule.IsActive)
+                            {
+                                <span class="badge bg-success">Ativa</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inativa</span>
+                            }
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => OpenEdit(rule)">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(rule)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (_formOpen)
+{
+    <DiscountRuleForm Rule="_editRule"
+                      OnSaved="OnRuleSaved"
+                      OnCancelled="CloseForm" />
+}
+
+<ConfirmDialog IsOpen="_confirmDeleteOpen"
+               Title="Remover regra"
+               Message="@($"Deseja remover a regra '{_ruleToDelete?.Name}'? Essa ação não pode ser desfeita.")"
+               ConfirmLabel="Remover"
+               OnConfirm="ExecuteDelete"
+               OnCancel="() => _confirmDeleteOpen = false" />
+
+@code {
+    List<DiscountRuleModel> _rules = [];
+    bool _loading = true;
+    bool _formOpen;
+    bool _showInactive;
+    bool _confirmDeleteOpen;
+    DiscountRuleModel? _editRule;
+    DiscountRuleModel? _ruleToDelete;
+
+    IEnumerable<DiscountRuleModel> FilteredRules =>
+        _showInactive ? _rules : _rules.Where(r => r.IsActive);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRules();
+    }
+
+    async Task LoadRules()
+    {
+        _loading = true;
+        _rules = await Api.GetDiscountRulesAsync();
+        _loading = false;
+    }
+
+    void OpenCreate()
+    {
+        _editRule = null;
+        _formOpen = true;
+    }
+
+    void OpenEdit(DiscountRuleModel rule)
+    {
+        _editRule = rule;
+        _formOpen = true;
+    }
+
+    async Task OnRuleSaved()
+    {
+        _formOpen = false;
+        await LoadRules();
+        Toasts.Show("Regra salva com sucesso.", ToastType.Success);
+    }
+
+    void CloseForm() => _formOpen = false;
+
+    void ConfirmDelete(DiscountRuleModel rule)
+    {
+        _ruleToDelete = rule;
+        _confirmDeleteOpen = true;
+    }
+
+    async Task ExecuteDelete()
+    {
+        _confirmDeleteOpen = false;
+        if (_ruleToDelete is null) return;
+        var error = await Api.DeleteDiscountRuleAsync(_ruleToDelete.Id);
+        if (error is null)
+        {
+            Toasts.Show("Regra removida.", ToastType.Success);
+            await LoadRules();
+        }
+        else
+            Toasts.Show(error, ToastType.Error);
+    }
+}
+

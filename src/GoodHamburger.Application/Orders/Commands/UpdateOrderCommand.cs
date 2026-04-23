@@ -1,7 +1,6 @@
 using GoodHamburger.Application.Abstractions;
 using GoodHamburger.Application.Dtos;
 using GoodHamburger.Domain.Exceptions;
-using GoodHamburger.Domain.Services;
 using Mediator;
 
 namespace GoodHamburger.Application.Orders.Commands;
@@ -13,13 +12,13 @@ public sealed class UpdateOrderCommandHandler : IRequestHandler<UpdateOrderComma
     private readonly IOrderRepository _orderRepository;
     private readonly IMenuRepository _menuRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IDiscountPolicy _discountPolicy;
+    private readonly IAsyncDiscountPolicy _discountPolicy;
 
     public UpdateOrderCommandHandler(
         IOrderRepository orderRepository,
         IMenuRepository menuRepository,
         IUnitOfWork unitOfWork,
-        IDiscountPolicy discountPolicy)
+        IAsyncDiscountPolicy discountPolicy)
     {
         _orderRepository = orderRepository;
         _menuRepository = menuRepository;
@@ -38,7 +37,9 @@ public sealed class UpdateOrderCommandHandler : IRequestHandler<UpdateOrderComma
             throw new InvalidOrderException("Um ou mais itens do cardápio não foram encontrados.");
 
         order.ReplaceItems(menuItems);
-        order.Recalculate(_discountPolicy);
+        var subtotal = order.Items.Sum(i => i.UnitPrice);
+        var discount = await _discountPolicy.CalculateAsync(order.Items, subtotal, DateTime.UtcNow, cancellationToken);
+        order.ApplyDiscount(discount.Percent, discount.AppliedRuleId, discount.AppliedRuleName);
 
         _orderRepository.Update(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

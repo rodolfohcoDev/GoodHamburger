@@ -26,5 +26,9 @@ public class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
 
         builder.Property(m => m.Category)
             .HasConversion<int>();
+
+        builder.Property(m => m.IsActive)
+            .IsRequired()
+            .HasDefaultValue(true);
     }
 }

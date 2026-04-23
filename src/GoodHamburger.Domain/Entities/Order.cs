@@ -12,6 +12,8 @@ public class Order
     public decimal DiscountPercent { get; private set; }
     public decimal DiscountAmount { get; private set; }
     public decimal Total { get; private set; }
+    public Guid? AppliedDiscountRuleId { get; private set; }
+    public string? AppliedDiscountRuleName { get; private set; }
 
     private readonly List<OrderItem> _items = new();
     public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
@@ -56,5 +58,32 @@ public class Order
         DiscountAmount = Math.Round(Subtotal * (DiscountPercent / 100), 2, MidpointRounding.AwayFromZero);
         Total = Subtotal - DiscountAmount;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Applies a pre-calculated discount (from the parameterized discount policy).
+    /// Recalculates Subtotal from items, then applies the given percent.
+    /// </summary>
+    public void ApplyDiscount(decimal percent, Guid? ruleId, string? ruleName)
+    {
+        Subtotal = _items.Sum(i => i.UnitPrice);
+        DiscountPercent = percent;
+        DiscountAmount = Math.Round(Subtotal * (DiscountPercent / 100), 2, MidpointRounding.AwayFromZero);
+        Total = Subtotal - DiscountAmount;
+        AppliedDiscountRuleId = ruleId;
+        AppliedDiscountRuleName = ruleName;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Builds a provisional in-memory list of OrderItems for discount simulation
+    /// (no category-duplicate check, no persistence).
+    /// </summary>
+    public static IReadOnlyCollection<OrderItem> BuildSimulationItems(IEnumerable<MenuItem> menuItems)
+    {
+        var tempOrder = new Order { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow };
+        foreach (var item in menuItems)
+            tempOrder._items.Add(OrderItem.Create(tempOrder.Id, item));
+        return tempOrder.Items;
     }
 }

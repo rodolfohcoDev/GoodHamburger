@@ -1,0 +1,44 @@
+@inject ToastService Toasts
+@implements IDisposable
+
+@if (_current is not null)
+{
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:2000">
+        <div class="toast show" role="alert" aria-live="assertive">
+            <div class="toast-body text-white fw-semibold @CssFor(_current.Type)" style="border-radius:8px">
+                @_current.Text
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    ToastMessage? _current;
+    System.Timers.Timer? _timer;
+
+    protected override void OnInitialized() => Toasts.OnShow += Handle;
+
+    void Handle(ToastMessage m)
+    {
+        _current = m;
+        _timer?.Stop();
+        _timer?.Dispose();
+        _timer = new System.Timers.Timer(4000) { AutoReset = false };
+        _timer.Elapsed += (_, _) => InvokeAsync(() => { _current = null; StateHasChanged(); });
+        _timer.Start();
+        InvokeAsync(StateHasChanged);
+    }
+
+    static string CssFor(ToastType t) => t switch
+    {
+        ToastType.Success => "bg-success",
+        ToastType.Error   => "bg-danger",
+        _                 => "bg-primary"
+    };
+
+    public void Dispose()
+    {
+        Toasts.OnShow -= Handle;
+        _timer?.Dispose();
+    }
+}

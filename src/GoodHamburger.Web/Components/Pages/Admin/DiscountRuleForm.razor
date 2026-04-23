@@ -1,0 +1,174 @@
+@rendermode InteractiveServer
+@inject ApiClient Api
+
+<!-- Backdrop -->
+<div class="modal-backdrop fade show" style="z-index:1040;"></div>
+
+<!-- Modal -->
+<div class="modal fade show d-block" tabindex="-1" style="z-index:1050;">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@(Rule is null ? "Nova regra de desconto" : "Editar regra")</h5>
+                <button type="button" class="btn-close" @onclick="OnCancelled"></button>
+            </div>
+            <div class="modal-body">
+                @if (_errorMessage is not null)
+                {
+                    <div class="alert alert-danger">@_errorMessage</div>
+                }
+
+                <div class="row g-3">
+                    <!-- Nome -->
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Nome <span class="text-danger">*</span></label>
+                        <input class="form-control" maxlength="80" @bind="_name" />
+                    </div>
+
+                    <!-- Percentual + Prioridade -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Desconto (%) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" min="0.01" max="100" step="0.01" @bind="_percent" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Prioridade <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" min="1" @bind="_priority" />
+                        <div class="form-text">Menor número = maior prioridade.</div>
+                    </div>
+
+                    <!-- Modo de correspondência -->
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Modo de correspondência</label>
+                        <select class="form-select" @bind="_matchMode">
+                            <option value="1">Categoria — pelo menos (≥)</option>
+                            <option value="2">Categoria — exato (=)</option>
+                            <option value="3">Itens específicos por ID</option>
+                        </select>
+                    </div>
+
+                    <!-- Categorias (modo 1 ou 2) -->
+                    @if (_matchMode != 3)
+                    {
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Categorias requeridas</label>
+                            <div class="d-flex gap-3 flex-wrap">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="cbSandwich" @bind="_requiresSandwich" />
+                                    <label class="form-check-label" for="cbSandwich">🥪 Sanduíche</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="cbFries" @bind="_requiresFries" />
+                                    <label class="form-check-label" for="cbFries">🍟 Acompanhamento</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="cbDrink" @bind="_requiresDrink" />
+                                    <label class="form-check-label" for="cbDrink">🥤 Bebida</label>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Subtotal mínimo -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Subtotal mínimo</label>
+                        <input type="number" class="form-control" min="0" step="0.01" placeholder="Sem mínimo"
+                               @bind="_minimumSubtotal" />
+                    </div>
+
+                    <!-- Janela de validade -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Válido de</label>
+                        <input type="datetime-local" class="form-control" @bind="_validFrom" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Válido até</label>
+                        <input type="datetime-local" class="form-control" @bind="_validUntil" />
+                    </div>
+
+                    <!-- Ativo -->
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="cbActive" @bind="_isActive" />
+                            <label class="form-check-label" for="cbActive">Regra ativa</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" @onclick="OnCancelled" disabled="@_saving">Cancelar</button>
+                <button class="btn btn-gh-primary" @onclick="Save" disabled="@_saving">
+                    @(_saving ? "Salvando..." : "Salvar")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public DiscountRuleModel? Rule { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+    [Parameter] public EventCallback OnCancelled { get; set; }
+
+    string _name = string.Empty;
+    decimal _percent = 10m;
+    int _priority = 1;
+    int _matchMode = 1;
+    bool _requiresSandwich = true;
+    bool _requiresFries;
+    bool _requiresDrink;
+    bool _isActive = true;
+    decimal? _minimumSubtotal;
+    DateTime? _validFrom;
+    DateTime? _validUntil;
+    bool _saving;
+    string? _errorMessage;
+
+    protected override void OnParametersSet()
+    {
+        if (Rule is not null)
+        {
+            _name = Rule.Name;
+            _percent = Rule.Percent;
+            _priority = Rule.Priority;
+            _matchMode = Rule.MatchMode;
+            _requiresSandwich = Rule.RequiresSandwich;
+            _requiresFries = Rule.RequiresFries;
+            _requiresDrink = Rule.RequiresDrink;
+            _isActive = Rule.IsActive;
+            _minimumSubtotal = Rule.MinimumSubtotal;
+            _validFrom = Rule.ValidFrom;
+            _validUntil = Rule.ValidUntil;
+        }
+    }
+
+    async Task Save()
+    {
+        _errorMessage = null;
+        _saving = true;
+
+        string? error;
+        if (Rule is null)
+        {
+            var req = new CreateDiscountRuleRequest(
+                _name, _percent, _matchMode,
+                _requiresSandwich, _requiresFries, _requiresDrink,
+                null, _priority, _isActive, _minimumSubtotal, _validFrom, _validUntil);
+            (_, error) = await Api.CreateDiscountRuleAsync(req);
+        }
+        else
+        {
+            var req = new UpdateDiscountRuleRequest(
+                _name, _percent, _matchMode,
+                _requiresSandwich, _requiresFries, _requiresDrink,
+                null, _priority, _isActive, _minimumSubtotal, _validFrom, _validUntil);
+            (_, error) = await Api.UpdateDiscountRuleAsync(Rule.Id, req);
+        }
+
+        _saving = false;
+
+        if (error is null)
+            await OnSaved.InvokeAsync();
+        else
+            _errorMessage = error;
+    }
+}

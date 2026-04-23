@@ -1,6 +1,7 @@
 using GoodHamburger.Application.Abstractions;
 using GoodHamburger.Infrastructure.Persistence;
 using GoodHamburger.Infrastructure.Repositories;
+using GoodHamburger.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,8 @@ public static class DependencyInjection
 
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IMenuRepository, MenuRepository>();
+        services.AddScoped<IDiscountRepository, DiscountRuleRepository>();
+        services.AddScoped<IAsyncDiscountPolicy, ParameterizedDiscountPolicy>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

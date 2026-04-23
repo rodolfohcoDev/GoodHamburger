@@ -2,7 +2,6 @@ using GoodHamburger.Application.Abstractions;
 using GoodHamburger.Application.Dtos;
 using GoodHamburger.Domain.Entities;
 using GoodHamburger.Domain.Exceptions;
-using GoodHamburger.Domain.Services;
 using Mediator;
 
 namespace GoodHamburger.Application.Orders.Commands;
@@ -14,13 +13,13 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
     private readonly IOrderRepository _orderRepository;
     private readonly IMenuRepository _menuRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IDiscountPolicy _discountPolicy;
+    private readonly IAsyncDiscountPolicy _discountPolicy;
 
     public CreateOrderCommandHandler(
         IOrderRepository orderRepository,
         IMenuRepository menuRepository,
         IUnitOfWork unitOfWork,
-        IDiscountPolicy discountPolicy)
+        IAsyncDiscountPolicy discountPolicy)
     {
         _orderRepository = orderRepository;
         _menuRepository = menuRepository;
@@ -39,7 +38,9 @@ public sealed class CreateOrderCommandHandler : IRequestHandler<CreateOrderComma
         foreach (var item in menuItems)
             order.AddItem(item);
 
-        order.Recalculate(_discountPolicy);
+        var subtotal = order.Items.Sum(i => i.UnitPrice);
+        var discount = await _discountPolicy.CalculateAsync(order.Items, subtotal, DateTime.UtcNow, cancellationToken);
+        order.ApplyDiscount(discount.Percent, discount.AppliedRuleId, discount.AppliedRuleName);
 
         await _orderRepository.AddAsync(order, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

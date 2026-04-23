@@ -225,3 +225,193 @@ public class MenuItemTests
         item.Price.Should().Be(5.00m);
     }
 }
+
+public class DiscountRuleMatchModeTests
+{
+    private static MenuItem MakeSandwich() => MenuItem.Create("XBURGER", "X Burger", 5m, ProductCategory.Sandwich);
+    private static MenuItem MakeFries()    => MenuItem.Create("FRIES", "Batata", 2m, ProductCategory.Fries);
+    private static MenuItem MakeDrink()    => MenuItem.Create("SODA", "Soda", 2.5m, ProductCategory.Drink);
+
+    private static IReadOnlyCollection<OrderItem> Items(params MenuItem[] items)
+        => Order.BuildSimulationItems(items);
+
+    // ── CategoryAtLeast tests ──────────────────────────────────────────
+
+    [Fact]
+    public void CategoryAtLeast_Combo_MatchesCombo()
+    {
+        var rule = DiscountRule.Create("Combo", 20m, DiscountMatchMode.CategoryAtLeast,
+            true, true, true, null, 1, true, null, null, null);
+        rule.Matches(Items(MakeSandwich(), MakeFries(), MakeDrink()), 9.5m, DateTime.UtcNow).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CategoryAtLeast_Combo_DoesNotMatchSandwichOnly()
+    {
+        var rule = DiscountRule.Create("Combo", 20m, DiscountMatchMode.CategoryAtLeast,
+            true, true, true, null, 1, true, null, null, null);
+        rule.Matches(Items(MakeSandwich()), 5m, DateTime.UtcNow).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CategoryAtLeast_SandwichFries_MatchesTwoItems()
+    {
+        var rule = DiscountRule.Create("SF", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, true, false, null, 1, true, null, null, null);
+        rule.Matches(Items(MakeSandwich(), MakeFries()), 7m, DateTime.UtcNow).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CategoryAtLeast_SandwichFries_AlsoMatchesCombo()
+    {
+        // CategoryAtLeast: having sandwich+fries+drink ALSO matches a rule requiring sandwich+fries
+        var rule = DiscountRule.Create("SF", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, true, false, null, 1, true, null, null, null);
+        rule.Matches(Items(MakeSandwich(), MakeFries(), MakeDrink()), 9.5m, DateTime.UtcNow).Should().BeTrue();
+    }
+
+    // ── CategoryExact tests ────────────────────────────────────────────
+
+    [Fact]
+    public void CategoryExact_Combo_DoesNotMatchComboWithExtra()
+    {
+        var rule = DiscountRule.Create("Exact2", 15m, DiscountMatchMode.CategoryExact,
+            true, false, true, null, 1, true, null, null, null);
+        // Rule requires exactly sandwich+drink (2 items). Sending 3 items should NOT match.
+        rule.Matches(Items(MakeSandwich(), MakeFries(), MakeDrink()), 9.5m, DateTime.UtcNow).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CategoryExact_SandwichDrink_MatchesExactly2()
+    {
+        var rule = DiscountRule.Create("Exact2", 15m, DiscountMatchMode.CategoryExact,
+            true, false, true, null, 1, true, null, null, null);
+        rule.Matches(Items(MakeSandwich(), MakeDrink()), 7.5m, DateTime.UtcNow).Should().BeTrue();
+    }
+
+    // ── Validity window tests ──────────────────────────────────────────
+
+    [Fact]
+    public void Matches_InactiveRule_ReturnsFalse()
+    {
+        var rule = DiscountRule.Create("Inactive", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, false, false, null, 1, false, null, null, null);
+        rule.Matches(Items(MakeSandwich()), 5m, DateTime.UtcNow).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Matches_BeforeValidFrom_ReturnsFalse()
+    {
+        var future = DateTime.UtcNow.AddDays(1);
+        var rule = DiscountRule.Create("Future", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, false, false, null, 1, true, null, future, null);
+        rule.Matches(Items(MakeSandwich()), 5m, DateTime.UtcNow).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Matches_AfterValidUntil_ReturnsFalse()
+    {
+        var past = DateTime.UtcNow.AddDays(-1);
+        var rule = DiscountRule.Create("Expired", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, false, false, null, 1, true, null, null, past);
+        rule.Matches(Items(MakeSandwich()), 5m, DateTime.UtcNow).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Matches_BelowMinimumSubtotal_ReturnsFalse()
+    {
+        var rule = DiscountRule.Create("MinSub", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, false, false, null, 1, true, 10m, null, null);
+        rule.Matches(Items(MakeSandwich()), 5m, DateTime.UtcNow).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Matches_AtMinimumSubtotal_ReturnsTrue()
+    {
+        var rule = DiscountRule.Create("MinSub", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, false, false, null, 1, true, 5m, null, null);
+        rule.Matches(Items(MakeSandwich()), 5m, DateTime.UtcNow).Should().BeTrue();
+    }
+
+    // ── Fingerprint tests ──────────────────────────────────────────────
+
+    [Fact]
+    public void Fingerprint_SameParams_AreEqual()
+    {
+        var rule1 = DiscountRule.Create("A", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, true, false, null, 1, true, null, null, null);
+        var rule2 = DiscountRule.Create("B", 20m, DiscountMatchMode.CategoryAtLeast,
+            true, true, false, null, 2, false, null, null, null);
+        rule1.Fingerprint.Should().Be(rule2.Fingerprint);
+    }
+
+    [Fact]
+    public void Fingerprint_DifferentParams_AreDifferent()
+    {
+        var rule1 = DiscountRule.Create("A", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, true, false, null, 1, true, null, null, null);
+        var rule2 = DiscountRule.Create("B", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, false, true, null, 1, true, null, null, null);
+        rule1.Fingerprint.Should().NotBe(rule2.Fingerprint);
+    }
+}
+
+public class DiscountRuleInvariantTests
+{
+    [Fact]
+    public void Create_EmptyName_Throws()
+    {
+        var act = () => DiscountRule.Create("", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, false, false, null, 1, true, null, null, null);
+        act.Should().Throw<InvalidDiscountRuleException>();
+    }
+
+    [Fact]
+    public void Create_ZeroPercent_Throws()
+    {
+        var act = () => DiscountRule.Create("Rule", 0m, DiscountMatchMode.CategoryAtLeast,
+            true, false, false, null, 1, true, null, null, null);
+        act.Should().Throw<InvalidDiscountRuleException>();
+    }
+
+    [Fact]
+    public void Create_NoCategories_Throws()
+    {
+        var act = () => DiscountRule.Create("Rule", 10m, DiscountMatchMode.CategoryAtLeast,
+            false, false, false, null, 1, true, null, null, null);
+        act.Should().Throw<InvalidDiscountRuleException>();
+    }
+
+    [Fact]
+    public void Create_ValidUntilBeforeValidFrom_Throws()
+    {
+        var act = () => DiscountRule.Create("Rule", 10m, DiscountMatchMode.CategoryAtLeast,
+            true, false, false, null, 1, true, null,
+            DateTime.UtcNow.AddDays(2), DateTime.UtcNow.AddDays(1));
+        act.Should().Throw<InvalidDiscountRuleException>();
+    }
+
+    [Fact]
+    public void Create_SpecificItemsNoIds_Throws()
+    {
+        var act = () => DiscountRule.Create("Rule", 10m, DiscountMatchMode.SpecificItems,
+            false, false, false, [], 1, true, null, null, null);
+        act.Should().Throw<InvalidDiscountRuleException>();
+    }
+
+    [Fact]
+    public void Order_ApplyDiscount_SetsFields()
+    {
+        var order = Order.Create();
+        order.AddItem(MenuItem.Create("XBURGER", "X Burger", 5m, ProductCategory.Sandwich));
+        var ruleId = Guid.NewGuid();
+
+        order.ApplyDiscount(10m, ruleId, "Test Rule");
+
+        order.DiscountPercent.Should().Be(10m);
+        order.AppliedDiscountRuleId.Should().Be(ruleId);
+        order.AppliedDiscountRuleName.Should().Be("Test Rule");
+        order.DiscountAmount.Should().Be(0.50m);
+        order.Total.Should().Be(4.50m);
+    }
+}

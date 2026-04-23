@@ -1,9 +1,7 @@
 using FluentValidation;
 using GoodHamburger.Domain.Exceptions;
-using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
-using System.Net;
 
 namespace GoodHamburger.Api.Middleware;
 
@@ -53,6 +51,21 @@ public class ExceptionHandlingMiddleware
                 StatusCodes.Status422UnprocessableEntity,
                 "Regra de negócio violada",
                 io.Message),
+
+            InvalidDiscountRuleException dr when dr.IsNotFound => (
+                StatusCodes.Status404NotFound,
+                "Regra de desconto não encontrada",
+                dr.Message),
+
+            InvalidDiscountRuleException dr when dr.IsConflict => (
+                StatusCodes.Status409Conflict,
+                "Conflito de regra de desconto",
+                dr.Message),
+
+            InvalidDiscountRuleException dr => (
+                StatusCodes.Status422UnprocessableEntity,
+                "Dados inválidos para regra de desconto",
+                dr.Message),
 
             _ => (
                 StatusCodes.Status500InternalServerError,

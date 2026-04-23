@@ -9,6 +9,7 @@ public class MenuItem
     public string Name { get; private set; } = string.Empty;
     public decimal Price { get; private set; }
     public ProductCategory Category { get; private set; }
+    public bool IsActive { get; private set; } = true;
 
     private MenuItem() { }
 
@@ -25,7 +26,20 @@ public class MenuItem
             Code = code,
             Name = name,
             Price = price,
-            Category = category
+            Category = category,
+            IsActive = true
         };
+    }
+
+    public void Update(string name, decimal price, ProductCategory category, bool isActive)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Nome não pode ser vazio.", nameof(name));
+        if (price < 0)
+            throw new ArgumentException("Preço não pode ser negativo.", nameof(price));
+        Name = name;
+        Price = price;
+        Category = category;
+        IsActive = isActive;
     }
 }

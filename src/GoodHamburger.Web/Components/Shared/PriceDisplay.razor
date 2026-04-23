@@ -1,0 +1,6 @@
+<span>@Value.ToString("C2", _ptBr)</span>
+
+@code {
+    [Parameter] public decimal Value { get; set; }
+    static readonly CultureInfo _ptBr = new("pt-BR");
+}

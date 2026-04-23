@@ -1,0 +1,189 @@
+@page "/admin/cardapio"
+@rendermode InteractiveServer
+@inject ApiClient Api
+@inject ToastService Toasts
+
+<PageTitle>Cardápio — Admin | Good Hamburger</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>🍔 Cardápio</h3>
+    <button class="btn btn-gh-primary" @onclick="OpenCreate">
+        <i class="bi bi-plus-lg me-1"></i>Novo item
+    </button>
+</div>
+
+@if (_loading)
+{
+    <LoadingSpinner Message="Carregando cardápio..." />
+}
+else if (_items.Count == 0)
+{
+    <EmptyState Icon="🥗" Title="Cardápio vazio"
+                Message="Adicione o primeiro item ao cardápio."
+                ActionLabel="Adicionar item" OnAction="OpenCreate" />
+}
+else
+{
+    <!-- Tabs por categoria -->
+    <ul class="nav nav-tabs mb-3">
+        @foreach (var cat in _tabs)
+        {
+            <li class="nav-item">
+                <button class="nav-link @(_activeTab == cat ? "active" : "")"
+                        @onclick="() => _activeTab = cat">
+                    @TabLabel(cat)
+                </button>
+            </li>
+        }
+    </ul>
+
+    @if (VisibleItems.Count == 0)
+    {
+        <p class="text-muted">Nenhum item nesta categoria.</p>
+    }
+    else
+    {
+        <div class="card-gh p-0 overflow-hidden">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Código</th>
+                        <th>Nome</th>
+                        <th>Preço</th>
+                        <th>Status</th>
+                        <th class="text-end">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in VisibleItems)
+                    {
+                        <tr class="@(item.IsActive ? "" : "text-muted")">
+                            <td><code>@item.Code</code></td>
+                            <td>@item.Name</td>
+                            <td><PriceDisplay Value="@item.Price" /></td>
+                            <td>
+                                @if (item.IsActive)
+                                {
+                                    <span class="badge bg-success">Ativo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inativo</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-secondary me-1"
+                                        @onclick="() => OpenEdit(item)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        @onclick="() => ConfirmDelete(item)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger mt-3">@_errorMessage</div>
+}
+
+<!-- Form modal -->
+<MenuItemForm IsOpen="_formOpen"
+              IsEdit="_isEdit"
+              EditItem="_editItem"
+              OnSaved="HandleSaved"
+              OnCancel="() => _formOpen = false" />
+
+<!-- Delete confirm -->
+<ConfirmDialog IsOpen="_confirmOpen"
+               Title="Excluir item"
+               Message='@($"Tem certeza que deseja excluir \"{_pendingItem?.Name}\"?")'
+               ConfirmLabel="Excluir"
+               OnConfirm="ExecuteDelete"
+               OnCancel="() => _confirmOpen = false" />
+
+@code {
+    List<MenuItemModel> _items = [];
+    bool _loading = true;
+    string? _errorMessage;
+
+    bool _formOpen;
+    bool _isEdit;
+    MenuItemModel? _editItem;
+
+    bool _confirmOpen;
+    MenuItemModel? _pendingItem;
+
+    static readonly ProductCategory[] _tabs =
+        [ProductCategory.Sandwich, ProductCategory.Fries, ProductCategory.Drink];
+
+    ProductCategory _activeTab = ProductCategory.Sandwich;
+
+    protected override async Task OnInitializedAsync() => await LoadItems();
+
+    async Task LoadItems()
+    {
+        _loading = true;
+        _errorMessage = null;
+        _items = await Api.GetMenuAsync(includeInactive: true);
+        _loading = false;
+    }
+
+    void OpenCreate()
+    {
+        _isEdit = false;
+        _editItem = null;
+        _formOpen = true;
+    }
+
+    void OpenEdit(MenuItemModel item)
+    {
+        _isEdit = true;
+        _editItem = item;
+        _formOpen = true;
+    }
+
+    void ConfirmDelete(MenuItemModel item)
+    {
+        _pendingItem = item;
+        _confirmOpen = true;
+    }
+
+    async Task ExecuteDelete()
+    {
+        _confirmOpen = false;
+        if (_pendingItem is null) return;
+        var error = await Api.DeleteMenuItemAsync(_pendingItem.Id);
+        if (error is null)
+        {
+            Toasts.Show($"\"{_pendingItem.Name}\" removido.", ToastType.Success);
+            await LoadItems();
+        }
+        else
+            _errorMessage = error;
+    }
+
+    async Task HandleSaved()
+    {
+        _formOpen = false;
+        await LoadItems();
+    }
+
+    IReadOnlyList<MenuItemModel> VisibleItems =>
+        _items.Where(i => i.Category == _activeTab).ToList();
+
+    static string TabLabel(ProductCategory cat) => cat switch
+    {
+        ProductCategory.Sandwich => "🥪 Sanduíches",
+        ProductCategory.Fries    => "🍟 Acompanhamentos",
+        ProductCategory.Drink    => "🥤 Bebidas",
+        _ => cat.ToString()
+    };
+}

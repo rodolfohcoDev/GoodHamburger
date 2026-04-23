@@ -2,202 +2,230 @@
 @rendermode InteractiveServer
 @inject ApiClient Api
 @inject NavigationManager Nav
+@inject ToastService Toasts
 
-<PageTitle>Monte seu pedido - Good Hamburger</PageTitle>
+<PageTitle>Novo pedido — Good Hamburger</PageTitle>
 
-<div class="container-fluid">
-    <h1 class="mb-4">Monte seu pedido</h1>
+<div class="mb-3">
+    <h3>🧾 Novo pedido</h3>
+    <p class="text-muted mb-0">Selecione os itens para montar seu pedido.</p>
+</div>
 
-    @if (_loading)
-    {
-        <div class="spinner-border" role="status"><span class="visually-hidden">Carregando...</span></div>
-    }
-    else
-    {
-        <div class="row">
-            <!-- Seleção -->
-            <div class="col-md-8">
+@if (_loading)
+{
+    <LoadingSpinner Message="Carregando cardápio..." />
+}
+else
+{
+    <div class="row g-4">
+        <!-- Seleção -->
+        <div class="col-lg-8">
 
-                <!-- Sanduíches -->
-                <div class="card mb-3">
-                    <div class="card-header bg-warning text-dark fw-bold">Escolha seu sanduiche</div>
-                    <div class="card-body d-flex flex-wrap gap-3">
-                        @foreach (var item in _sandwiches)
-                        {
-                            <div class="form-check card p-3" style="min-width:150px; cursor:pointer"
-                                 @onclick="() => SelectSandwich(item)">
-                                <input class="form-check-input" type="radio" name="sandwich"
-                                       checked="@(_selectedSandwich?.Id == item.Id)" />
-                                <label class="form-check-label ms-2">
-                                    <strong>@item.Name</strong><br />
-                                    <span class="text-success">R$ @item.Price.ToString("0.00")</span>
-                                </label>
-                            </div>
-                        }
-                    </div>
-                </div>
-
-                <!-- Batata -->
-                <div class="card mb-3">
-                    <div class="card-header bg-warning text-dark fw-bold">Quer uma batata?</div>
-                    <div class="card-body d-flex flex-wrap gap-3">
-                        <div class="form-check card p-3" style="min-width:150px; cursor:pointer"
-                             @onclick="() => _selectedFries = null">
-                            <input class="form-check-input" type="radio" name="fries"
-                                   checked="@(_selectedFries == null)" />
-                            <label class="form-check-label ms-2"><strong>Nenhuma</strong></label>
+            <!-- Sanduíches -->
+            <div class="card-gh mb-3">
+                <h6 class="fw-bold mb-3">🥪 Escolha seu sanduíche <span class="text-danger">*</span></h6>
+                <div class="d-flex flex-wrap gap-3">
+                    @foreach (var item in _sandwiches)
+                    {
+                        <div class="card-gh selectable @(_selectedSandwich?.Id == item.Id ? "selected" : "")"
+                             style="min-width:160px; cursor:pointer"
+                             @onclick="() => SelectSandwich(item)" role="button" tabindex="0"
+                             @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") SelectSandwich(item); }'>
+                            <strong>@item.Name</strong>
+                            <div class="text-danger mt-1"><PriceDisplay Value="@item.Price" /></div>
                         </div>
-                        @foreach (var item in _fries)
-                        {
-                            <div class="form-check card p-3" style="min-width:150px; cursor:pointer"
-                                 @onclick="() => _selectedFries = item">
-                                <input class="form-check-input" type="radio" name="fries"
-                                       checked="@(_selectedFries?.Id == item.Id)" />
-                                <label class="form-check-label ms-2">
-                                    <strong>@item.Name</strong><br />
-                                    <span class="text-success">R$ @item.Price.ToString("0.00")</span>
-                                </label>
-                            </div>
-                        }
-                    </div>
-                </div>
-
-                <!-- Bebida -->
-                <div class="card mb-3">
-                    <div class="card-header bg-warning text-dark fw-bold">E pra beber?</div>
-                    <div class="card-body d-flex flex-wrap gap-3">
-                        <div class="form-check card p-3" style="min-width:150px; cursor:pointer"
-                             @onclick="() => _selectedDrink = null">
-                            <input class="form-check-input" type="radio" name="drink"
-                                   checked="@(_selectedDrink == null)" />
-                            <label class="form-check-label ms-2"><strong>Nenhuma</strong></label>
-                        </div>
-                        @foreach (var item in _drinks)
-                        {
-                            <div class="form-check card p-3" style="min-width:150px; cursor:pointer"
-                                 @onclick="() => _selectedDrink = item">
-                                <input class="form-check-input" type="radio" name="drink"
-                                       checked="@(_selectedDrink?.Id == item.Id)" />
-                                <label class="form-check-label ms-2">
-                                    <strong>@item.Name</strong><br />
-                                    <span class="text-success">R$ @item.Price.ToString("0.00")</span>
-                                </label>
-                            </div>
-                        }
-                    </div>
+                    }
                 </div>
             </div>
 
-            <!-- Resumo -->
-            <div class="col-md-4">
-                <div class="card sticky-top" style="top:1rem">
-                    <div class="card-header bg-dark text-white fw-bold">Resumo do pedido</div>
-                    <div class="card-body">
-                        @if (!SelectedItems.Any())
-                        {
-                            <p class="text-muted">Nenhum item selecionado.</p>
-                        }
-                        else
-                        {
-                            <ul class="list-group list-group-flush mb-3">
-                                @foreach (var item in SelectedItems)
-                                {
-                                    <li class="list-group-item d-flex justify-content-between">
-                                        <span>@item.Name</span>
-                                        <span>R$ @item.Price.ToString("0.00")</span>
-                                    </li>
-                                }
-                            </ul>
-                            <div class="mb-1 d-flex justify-content-between">
-                                <span>Subtotal</span><span>R$ @Subtotal.ToString("0.00")</span>
-                            </div>
-                            @if (DiscountPercent > 0)
-                            {
-                                <div class="mb-1 text-success d-flex justify-content-between">
-                                    <span>Desconto (@DiscountPercent%)</span>
-                                    <span>- R$ @DiscountAmount.ToString("0.00")</span>
-                                </div>
-                                <div class="alert alert-success py-1 px-2 small">
-                                    @DiscountMessage
-                                </div>
-                            }
-                            <div class="fw-bold fs-5 d-flex justify-content-between border-top pt-2">
-                                <span>Total</span><span>R$ @Total.ToString("0.00")</span>
-                            </div>
-                        }
-
-                        @if (_errorMessage is not null)
-                        {
-                            <div class="alert alert-danger mt-3">@_errorMessage</div>
-                        }
-
-                        <button class="btn btn-success w-100 mt-3" disabled="@(!SelectedItems.Any() || _submitting)"
-                                @onclick="SubmitOrder">
-                            @(_submitting ? "Enviando..." : "Fazer pedido")
-                        </button>
+            <!-- Acompanhamento -->
+            <div class="card-gh mb-3">
+                <h6 class="fw-bold mb-3">🍟 Quer uma batata?</h6>
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="card-gh selectable @(_selectedFries == null ? "selected" : "")"
+                         style="min-width:120px; cursor:pointer"
+                         @onclick="() => SelectFries(null)" role="button" tabindex="0">
+                        <strong>Nenhuma</strong>
                     </div>
+                    @foreach (var item in _fries)
+                    {
+                        <div class="card-gh selectable @(_selectedFries?.Id == item.Id ? "selected" : "")"
+                             style="min-width:160px; cursor:pointer"
+                             @onclick="() => SelectFries(item)" role="button" tabindex="0"
+                             @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") SelectFries(item); }'>
+                            <strong>@item.Name</strong>
+                            <div class="text-danger mt-1"><PriceDisplay Value="@item.Price" /></div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Bebida -->
+            <div class="card-gh mb-3">
+                <h6 class="fw-bold mb-3">🥤 E pra beber?</h6>
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="card-gh selectable @(_selectedDrink == null ? "selected" : "")"
+                         style="min-width:120px; cursor:pointer"
+                         @onclick="() => SelectDrink(null)" role="button" tabindex="0">
+                        <strong>Nenhuma</strong>
+                    </div>
+                    @foreach (var item in _drinks)
+                    {
+                        <div class="card-gh selectable @(_selectedDrink?.Id == item.Id ? "selected" : "")"
+                             style="min-width:160px; cursor:pointer"
+                             @onclick="() => SelectDrink(item)" role="button" tabindex="0"
+                             @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") SelectDrink(item); }'>
+                            <strong>@item.Name</strong>
+                            <div class="text-danger mt-1"><PriceDisplay Value="@item.Price" /></div>
+                        </div>
+                    }
                 </div>
             </div>
         </div>
-    }
-</div>
+
+        <!-- Resumo -->
+        <div class="col-lg-4">
+            <div class="card-gh sticky-top" style="top:1rem">
+                <h6 class="fw-bold mb-3">Resumo do pedido</h6>
+                @if (!SelectedItems.Any())
+                {
+                    <p class="text-muted small">Nenhum item selecionado.</p>
+                }
+                else
+                {
+                    <ul class="list-unstyled mb-3">
+                        @foreach (var item in SelectedItems)
+                        {
+                            <li class="d-flex justify-content-between py-1 border-bottom">
+                                <span>@item.Name</span>
+                                <PriceDisplay Value="@item.Price" />
+                            </li>
+                        }
+                    </ul>
+                    <div class="d-flex justify-content-between small text-muted mb-1">
+                        <span>Subtotal</span><PriceDisplay Value="@Subtotal" />
+                    </div>
+                    @if (DiscountPercent > 0)
+                    {
+                        <div class="d-flex justify-content-between small text-success mb-1">
+                            <span>Desconto (@DiscountPercent%)</span>
+                            <span>- <PriceDisplay Value="@DiscountAmount" /></span>
+                        </div>
+                        <div class="chip mb-2">🎉 @DiscountLabel</div>
+                    }
+                    @if (_simulationLoading)
+                    {
+                        <div class="text-muted small mb-1"><i class="bi bi-hourglass-split me-1"></i>Calculando desconto...</div>
+                    }                    <div class="d-flex justify-content-between fw-bold fs-6 pt-2 border-top">
+                        <span>Total</span><PriceDisplay Value="@Total" />
+                    </div>
+                }
+
+                @if (_errorMessage is not null)
+                {
+                    <div class="alert alert-danger mt-3 small py-2">@_errorMessage</div>
+                }
+
+                <button class="btn btn-gh-primary w-100 mt-3"
+                        disabled="@(!SelectedItems.Any() || _submitting)"
+                        @onclick="SubmitOrder">
+                    @(_submitting ? "Enviando..." : "Fazer pedido")
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
-    private List<MenuItemModel> _sandwiches = [];
-    private List<MenuItemModel> _fries = [];
-    private List<MenuItemModel> _drinks = [];
-    private MenuItemModel? _selectedSandwich;
-    private MenuItemModel? _selectedFries;
-    private MenuItemModel? _selectedDrink;
-    private bool _loading = true;
-    private bool _submitting = false;
-    private string? _errorMessage;
+    List<MenuItemModel> _sandwiches = [];
+    List<MenuItemModel> _fries = [];
+    List<MenuItemModel> _drinks = [];
+    MenuItemModel? _selectedSandwich;
+    MenuItemModel? _selectedFries;
+    MenuItemModel? _selectedDrink;
+    bool _loading = true;
+    bool _submitting;
+    bool _simulationLoading;
+    string? _errorMessage;
+    SimulationResult? _simulation;
+    CancellationTokenSource _simCts = new();
 
     protected override async Task OnInitializedAsync()
     {
         var menu = await Api.GetMenuAsync();
         _sandwiches = menu.Where(m => m.Category == ProductCategory.Sandwich).ToList();
-        _fries = menu.Where(m => m.Category == ProductCategory.Fries).ToList();
-        _drinks = menu.Where(m => m.Category == ProductCategory.Drink).ToList();
+        _fries      = menu.Where(m => m.Category == ProductCategory.Fries).ToList();
+        _drinks     = menu.Where(m => m.Category == ProductCategory.Drink).ToList();
         _loading = false;
     }
 
-    private void SelectSandwich(MenuItemModel item)
+    void SelectSandwich(MenuItemModel item)
     {
         _selectedSandwich = _selectedSandwich?.Id == item.Id ? null : item;
+        _ = TriggerSimulationAsync();
     }
 
-    private IEnumerable<MenuItemModel> SelectedItems =>
-        new[] { _selectedSandwich, _selectedFries, _selectedDrink }.OfType<MenuItemModel>();
-
-    private decimal Subtotal => SelectedItems.Sum(i => i.Price);
-
-    private decimal DiscountPercent
+    void SelectFries(MenuItemModel? item)
     {
-        get
+        _selectedFries = item;
+        _ = TriggerSimulationAsync();
+    }
+
+    void SelectDrink(MenuItemModel? item)
+    {
+        _selectedDrink = item;
+        _ = TriggerSimulationAsync();
+    }
+
+    async Task TriggerSimulationAsync()
+    {
+        await _simCts.CancelAsync();
+        _simCts = new CancellationTokenSource();
+        var token = _simCts.Token;
+
+        var ids = SelectedItems.Select(i => i.Id).ToList();
+        if (!ids.Any())
         {
-            bool hasSandwich = _selectedSandwich is not null;
-            bool hasFries = _selectedFries is not null;
-            bool hasDrink = _selectedDrink is not null;
-            if (hasSandwich && hasFries && hasDrink) return 20m;
-            if (hasSandwich && hasDrink) return 15m;
-            if (hasSandwich && hasFries) return 10m;
-            return 0m;
+            _simulation = null;
+            StateHasChanged();
+            return;
+        }
+
+        _simulationLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await Task.Delay(300, token);
+            var (result, _) = await Api.SimulateDiscountAsync(ids);
+            if (!token.IsCancellationRequested)
+            {
+                _simulation = result;
+                _simulationLoading = false;
+                StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch
+        {
+            _simulationLoading = false;
+            StateHasChanged();
         }
     }
 
-    private decimal DiscountAmount => Math.Round(Subtotal * (DiscountPercent / 100), 2, MidpointRounding.AwayFromZero);
-    private decimal Total => Subtotal - DiscountAmount;
+    IEnumerable<MenuItemModel> SelectedItems =>
+        new[] { _selectedSandwich, _selectedFries, _selectedDrink }.OfType<MenuItemModel>();
 
-    private string DiscountMessage => DiscountPercent switch
-    {
-        20m => "Voce ganhou 20% de desconto no combo completo!",
-        15m => "Voce ganhou 15% de desconto (sanduiche + bebida)!",
-        10m => "Voce ganhou 10% de desconto (sanduiche + batata)!",
-        _ => string.Empty
-    };
+    decimal Subtotal => SelectedItems.Sum(i => i.Price);
 
-    private async Task SubmitOrder()
+    decimal DiscountPercent => _simulation?.AppliedPercent ?? 0m;
+
+    string DiscountLabel => _simulation?.AppliedRuleName is { } name ? $"{name} — {DiscountPercent}% de desconto" : string.Empty;
+
+    decimal DiscountAmount => _simulation?.DiscountAmount ?? Math.Round(Subtotal * (DiscountPercent / 100), 2, MidpointRounding.AwayFromZero);
+    decimal Total => _simulation?.Total ?? (Subtotal - DiscountAmount);
+
+    async Task SubmitOrder()
     {
         _submitting = true;
         _errorMessage = null;
@@ -206,8 +234,12 @@
         _submitting = false;
 
         if (order is not null)
-            Nav.NavigateTo($"/pedidos/{order.Id}?success=true");
+        {
+            Toasts.Show("Pedido criado com sucesso!", ToastType.Success);
+            Nav.NavigateTo($"/pedidos/{order.Id}");
+        }
         else
             _errorMessage = error;
     }
 }
+

@@ -6,6 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddScoped<ToastService>();
+
 builder.Services.AddHttpClient<ApiClient>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["Api:BaseUrl"] ?? "http://localhost:8080");

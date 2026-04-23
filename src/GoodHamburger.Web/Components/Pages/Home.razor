@@ -1,12 +1,38 @@
 ﻿@page "/"
+@rendermode InteractiveServer
+@inject NavigationManager Nav
 
 <PageTitle>Good Hamburger</PageTitle>
 
-<div class="container text-center mt-5">
-    <h1>Good Hamburger</h1>
-    <p class="lead">O melhor hamburguer da cidade!</p>
-    <div class="d-flex gap-3 justify-content-center mt-4">
-        <a href="/pedido/novo" class="btn btn-warning btn-lg">Fazer pedido</a>
-        <a href="/pedidos" class="btn btn-outline-secondary btn-lg">Ver pedidos</a>
+<div class="mb-4">
+    <h2>Bem-vindo à Good Hamburger 🍔</h2>
+    <p class="text-muted">Monte pedidos em segundos e acompanhe tudo por aqui.</p>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card-gh selectable h-100" @onclick='() => Nav.NavigateTo("/pedido/novo")' role="button" tabindex="0"
+             @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") Nav.NavigateTo("/pedido/novo"); }'>
+            <div style="font-size:2.2rem">🧾</div>
+            <h5 class="mt-2">Novo pedido</h5>
+            <p class="text-muted mb-0">Comece aqui para registrar um pedido.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-gh selectable h-100" @onclick='() => Nav.NavigateTo("/pedidos")' role="button" tabindex="0"
+             @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") Nav.NavigateTo("/pedidos"); }'>
+            <div style="font-size:2.2rem">📋</div>
+            <h5 class="mt-2">Ver pedidos</h5>
+            <p class="text-muted mb-0">Consulte o histórico de pedidos.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-gh selectable h-100" @onclick='() => Nav.NavigateTo("/admin/cardapio")' role="button" tabindex="0"
+             @onkeydown='e => { if (e.Key == "Enter" || e.Key == " ") Nav.NavigateTo("/admin/cardapio"); }'>
+            <div style="font-size:2.2rem">🍔</div>
+            <h5 class="mt-2">Cardápio</h5>
+            <p class="text-muted mb-0">Gerencie sanduíches, acompanhamentos e bebidas.</p>
+        </div>
     </div>
 </div>
+

@@ -24,6 +24,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Total)
             .HasColumnType("decimal(10,2)");
 
+        builder.Property(o => o.AppliedDiscountRuleId);
+        builder.Property(o => o.AppliedDiscountRuleName).HasMaxLength(80);
+
         builder.HasMany<OrderItem>(o => o.Items)
             .WithOne()
             .HasForeignKey(oi => oi.OrderId)

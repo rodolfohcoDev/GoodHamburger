@@ -19,6 +19,8 @@ internal static class OrderMappings
             order.Subtotal,
             order.DiscountPercent,
             order.DiscountAmount,
-            order.Total);
+            order.Total,
+            order.AppliedDiscountRuleId,
+            order.AppliedDiscountRuleName);
     }
 }

@@ -9,7 +9,7 @@ COPY ["src/GoodHamburger.Infrastructure/GoodHamburger.Infrastructure.csproj", "s
 RUN dotnet restore "src/GoodHamburger.Api/GoodHamburger.Api.csproj"
 
 COPY . .
-RUN dotnet publish "src/GoodHamburger.Api/GoodHamburger.Api.csproj" -c Release -o /app/publish --no-restore
+RUN dotnet publish "src/GoodHamburger.Api/GoodHamburger.Api.csproj" -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app

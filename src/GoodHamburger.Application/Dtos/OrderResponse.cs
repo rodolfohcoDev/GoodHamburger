@@ -8,4 +8,6 @@ public record OrderResponse(
     decimal Subtotal,
     decimal DiscountPercent,
     decimal DiscountAmount,
-    decimal Total);
+    decimal Total,
+    Guid? AppliedDiscountRuleId = null,
+    string? AppliedDiscountRuleName = null);

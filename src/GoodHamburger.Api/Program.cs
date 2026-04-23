@@ -21,6 +21,12 @@ builder.Host.UseSerilog((ctx, lc) => lc
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -35,6 +41,7 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseCors();
 
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
@@ -44,6 +51,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 
 app.MapMenuEndpoints();
 app.MapOrderEndpoints();
+app.MapDiscountRuleEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -53,6 +61,7 @@ using (var scope = app.Services.CreateScope())
     else
         await db.Database.EnsureCreatedAsync();
     await MenuSeeder.SeedAsync(db);
+    await DiscountRuleSeeder.SeedAsync(db);
 }
 
 app.Run();

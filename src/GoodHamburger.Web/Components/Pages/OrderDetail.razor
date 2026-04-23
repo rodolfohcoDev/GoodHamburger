@@ -2,82 +2,128 @@
 @rendermode InteractiveServer
 @inject ApiClient Api
 @inject NavigationManager Nav
+@inject ToastService Toasts
 
-<PageTitle>Pedido - Good Hamburger</PageTitle>
+<PageTitle>Pedido — Good Hamburger</PageTitle>
 
-<div class="container">
-    <div class="mb-3">
-        <a href="/pedidos" class="btn btn-outline-secondary btn-sm">Voltar</a>
-    </div>
+<div class="mb-3">
+    <a href="/pedidos" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Voltar
+    </a>
+</div>
 
-    @if (_success)
-    {
-        <div class="alert alert-success alert-dismissible">
-            Pedido registrado com sucesso!
-            <button type="button" class="btn-close" @onclick="() => _success = false"></button>
-        </div>
-    }
+@if (_loading)
+{
+    <LoadingSpinner Message="Carregando pedido..." />
+}
+else if (_order is null)
+{
+    <EmptyState Icon="🔍" Title="Pedido não encontrado"
+                Message="O pedido solicitado não existe ou foi excluído."
+                ActionLabel="Ver todos os pedidos"
+                OnAction='() => Nav.NavigateTo("/pedidos")' />
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card-gh">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h4 class="mb-0">Pedido <code class="text-muted">@_order.Id.ToString()[..8]…</code></h4>
+                        <small class="text-muted">
+                            <i class="bi bi-clock me-1"></i>
+                            @_order.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                        </small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger"
+                            @onclick="() => _confirmOpen = true">
+                        <i class="bi bi-trash me-1"></i>Excluir
+                    </button>
+                </div>
 
-    @if (_loading)
-    {
-        <div class="spinner-border" role="status"></div>
-    }
-    else if (_order is null)
-    {
-        <div class="alert alert-warning">Pedido nao encontrado.</div>
-    }
-    else
-    {
-        <h2>Pedido <code>@_order.Id.ToString()[..8]</code></h2>
-        <p class="text-muted">Criado em @_order.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
-
-        <div class="card mb-3">
-            <div class="card-body">
-                <h5>Itens</h5>
-                <ul class="list-group list-group-flush">
+                <h6 class="fw-bold">Itens do pedido</h6>
+                <ul class="list-unstyled">
                     @foreach (var item in _order.Items)
                     {
-                        <li class="list-group-item d-flex justify-content-between">
-                            <span>@item.MenuItemName</span>
-                            <span>R$ @item.UnitPrice.ToString("0.00")</span>
+                        <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <div class="d-flex align-items-center gap-2">
+                                <CategoryBadge Category="@item.Category" />
+                                <span>@item.MenuItemName</span>
+                            </div>
+                            <PriceDisplay Value="@item.UnitPrice" />
                         </li>
                     }
                 </ul>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-body">
+        <div class="col-lg-5">
+            <div class="card-gh">
+                <h6 class="fw-bold mb-3">Resumo</h6>
                 <div class="d-flex justify-content-between mb-1">
-                    <span>Subtotal</span><span>R$ @_order.Subtotal.ToString("0.00")</span>
+                    <span class="text-muted">Subtotal</span>
+                    <PriceDisplay Value="@_order.Subtotal" />
                 </div>
                 @if (_order.DiscountPercent > 0)
                 {
                     <div class="d-flex justify-content-between mb-1 text-success">
                         <span>Desconto (@_order.DiscountPercent%)</span>
-                        <span>- R$ @_order.DiscountAmount.ToString("0.00")</span>
+                        <span>- <PriceDisplay Value="@_order.DiscountAmount" /></span>
                     </div>
+                    @if (_order.AppliedDiscountRuleName is not null)
+                    {
+                        <div class="text-muted small mb-1">
+                            <i class="bi bi-tag me-1"></i>@_order.AppliedDiscountRuleName
+                        </div>
+                    }
                 }
-                <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-2">
-                    <span>Total</span><span>R$ @_order.Total.ToString("0.00")</span>
+                <div class="d-flex justify-content-between fw-bold fs-6 border-top pt-2">
+                    <span>Total</span>
+                    <PriceDisplay Value="@_order.Total" />
                 </div>
             </div>
         </div>
-    }
-</div>
+    </div>
+}
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger mt-3">@_errorMessage</div>
+}
+
+<ConfirmDialog IsOpen="_confirmOpen"
+               Title="Excluir pedido"
+               Message="Tem certeza que deseja excluir este pedido? Essa ação não pode ser desfeita."
+               ConfirmLabel="Excluir"
+               OnConfirm="ExecuteDelete"
+               OnCancel="() => _confirmOpen = false" />
 
 @code {
     [Parameter] public Guid Id { get; set; }
-    [SupplyParameterFromQuery] public string? Success { get; set; }
 
-    private OrderModel? _order;
-    private bool _loading = true;
-    private bool _success;
+    OrderModel? _order;
+    bool _loading = true;
+    bool _confirmOpen;
+    string? _errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        _success = Success == "true";
         _order = await Api.GetOrderAsync(Id);
         _loading = false;
     }
+
+    async Task ExecuteDelete()
+    {
+        _confirmOpen = false;
+        var error = await Api.DeleteOrderAsync(Id);
+        if (error is null)
+        {
+            Toasts.Show("Pedido excluído.", ToastType.Success);
+            Nav.NavigateTo("/pedidos");
+        }
+        else
+            _errorMessage = error;
+    }
 }
+
