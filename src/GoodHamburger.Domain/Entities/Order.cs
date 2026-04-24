@@ -1,5 +1,4 @@
 using GoodHamburger.Domain.Exceptions;
-using GoodHamburger.Domain.Services;
 
 namespace GoodHamburger.Domain.Entities;
 
@@ -51,19 +50,6 @@ public class Order
             AddItem(item);
     }
 
-    public void Recalculate(IDiscountPolicy policy)
-    {
-        Subtotal = _items.Sum(i => i.UnitPrice);
-        DiscountPercent = policy.CalculatePercent(_items);
-        DiscountAmount = Math.Round(Subtotal * (DiscountPercent / 100), 2, MidpointRounding.AwayFromZero);
-        Total = Subtotal - DiscountAmount;
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>
-    /// Applies a pre-calculated discount (from the parameterized discount policy).
-    /// Recalculates Subtotal from items, then applies the given percent.
-    /// </summary>
     public void ApplyDiscount(decimal percent, Guid? ruleId, string? ruleName)
     {
         Subtotal = _items.Sum(i => i.UnitPrice);
